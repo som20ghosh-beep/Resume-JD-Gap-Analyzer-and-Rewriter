@@ -15,6 +15,7 @@ export const ContactSchema = z.object({
   location: z.string().optional(),
   links: z.array(LinkSchema),
 });
+export type Contact = z.infer<typeof ContactSchema>;
 
 export const BulletSchema = z.object({
   id: z.string(),
@@ -32,6 +33,7 @@ export const ExperienceSchema = z.object({
   endDate: z.union([z.string(), z.literal("Present")]),
   bullets: z.array(BulletSchema),
 });
+export type Experience = z.infer<typeof ExperienceSchema>;
 
 export const EducationSchema = z.object({
   id: z.string(),
@@ -41,6 +43,7 @@ export const EducationSchema = z.object({
   year: z.string().optional(),
   details: z.string().optional(),
 });
+export type Education = z.infer<typeof EducationSchema>;
 
 export const SkillSchema = z.object({
   id: z.string(),
@@ -49,6 +52,7 @@ export const SkillSchema = z.object({
   isGenerated: z.boolean(),
   userAttested: z.boolean(),
 });
+export type Skill = z.infer<typeof SkillSchema>;
 
 export const ProjectSchema = z.object({
   id: z.string(),
@@ -57,6 +61,7 @@ export const ProjectSchema = z.object({
   tech: z.array(z.string()),
   link: z.string().optional(),
 });
+export type Project = z.infer<typeof ProjectSchema>;
 
 export const CertificationSchema = z.object({
   id: z.string(),
@@ -64,6 +69,7 @@ export const CertificationSchema = z.object({
   issuer: z.string().optional(),
   year: z.string().optional(),
 });
+export type Certification = z.infer<typeof CertificationSchema>;
 
 export const ResumeSchema = z.object({
   id: z.string(),
