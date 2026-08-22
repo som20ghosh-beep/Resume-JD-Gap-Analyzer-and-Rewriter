@@ -1,0 +1,75 @@
+// Prisma schema for ResumeFit.
+// Structured domain objects (Resume, JobDescription, Suggestion, AtsScore) are defined in
+// src/lib/types.ts with matching Zod schemas. They are persisted here as validated JSON blobs
+// per row rather than fully normalized tables, since SQLite has no native JSON type and the
+// shapes are already the source of truth in Zod. Swapping the datasource provider to
+// "postgresql" later works unchanged (Postgres also stores these as text/jsonb).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// One resume the user uploaded. Its content lives entirely in ResumeVersion rows so edits
+// are non-destructive: every approved change creates a new version instead of mutating one.
+model ResumeDocument {
+  id            String          @id @default(cuid())
+  originalName  String
+  originalMime  String
+  createdAt     DateTime        @default(now())
+  versions      ResumeVersion[]
+  suggestions   Suggestion[]
+  scores        AtsScoreRecord[]
+}
+
+model ResumeVersion {
+  id         String         @id @default(cuid())
+  documentId String
+  document   ResumeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version    Int
+  data       String         // JSON-serialized Resume (Zod-validated before write)
+  changelog  String?        // human-readable summary of what changed vs. the previous version
+  createdAt  DateTime       @default(now())
+
+  @@unique([documentId, version])
+}
+
+model JobDescriptionRecord {
+  id          String       @id @default(cuid())
+  data        String       // JSON-serialized JobDescription (Zod-validated before write)
+  createdAt   DateTime     @default(now())
+  suggestions Suggestion[]
+  scores      AtsScoreRecord[]
+}
+
+model Suggestion {
+  id         String         @id @default(cuid())
+  documentId String
+  document   ResumeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  jdId       String
+  jd         JobDescriptionRecord @relation(fields: [jdId], references: [id], onDelete: Cascade)
+  action     String         // REPHRASE | CONFIRM | GAP
+  status     String         // PENDING | APPROVED | REJECTED | NEEDS_INPUT
+  data       String         // full JSON-serialized Suggestion (Zod-validated before write)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([documentId, jdId])
+}
+
+model AtsScoreRecord {
+  id            String         @id @default(cuid())
+  documentId    String
+  document      ResumeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  resumeVersion Int
+  jdId          String
+  jd            JobDescriptionRecord @relation(fields: [jdId], references: [id], onDelete: Cascade)
+  data          String         // JSON-serialized AtsScore (Zod-validated before write)
+  createdAt     DateTime       @default(now())
+
+  @@index([documentId, jdId])
+}
