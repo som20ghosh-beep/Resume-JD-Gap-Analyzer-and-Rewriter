@@ -17,13 +17,13 @@ export async function extractJobDescription(rawText: string): Promise<JobDescrip
     system: JD_EXTRACTION_SYSTEM_PROMPT,
     userContent: buildJdExtractionUserContent(rawText),
     schema: JdExtractionSchema,
-    effort: "medium",
+    temperature: 0,
   });
 
   return {
     id: newId("jd"),
     title: extraction.title,
-    company: extraction.company,
+    company: extraction.company ?? undefined,
     rawText,
     requirements: extraction.requirements.map((r) => ({
       id: newId("req"),

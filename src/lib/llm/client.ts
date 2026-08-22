@@ -1,18 +1,19 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 
-// Model choice: Claude Opus 5 removed the `temperature` parameter entirely (400 on any
-// value), which conflicts with the spec's literal "temperature 0 for extraction, 0.3 for
-// suggestions" wording. Per user decision, we use Opus 5 anyway and get determinism from
-// structured outputs (a schema-constrained response) plus low/adaptive effort instead of
-// sampling temperature.
-export const LLM_MODEL = "claude-opus-5";
+// Switched from the spec's Anthropic default to Groq per user decision (no Anthropic key
+// available, has a Groq one). openai/gpt-oss-120b is one of only two Groq models that
+// currently support strict JSON-schema structured outputs (constrained decoding — the model
+// literally cannot emit a token that would violate the schema), which is what extract-
+// structured.ts relies on. Unlike Claude Opus 5, Groq still supports `temperature`, so
+// extraction can use temperature 0 and suggestion wording 0.3 exactly as the spec asks.
+export const LLM_MODEL = "openai/gpt-oss-120b";
 
-let client: Anthropic | null = null;
+let client: Groq | null = null;
 
-export function getAnthropicClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) {
+export function getGroqClient(): Groq {
+  if (!process.env.GROQ_API_KEY) {
     throw new Error("MISSING_API_KEY");
   }
-  client ??= new Anthropic();
+  client ??= new Groq();
   return client;
 }

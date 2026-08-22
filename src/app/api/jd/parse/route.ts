@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 import { apiError } from "@/lib/api-errors";
 import { ParseError } from "@/lib/parsers/errors";
 import { LlmExtractionError } from "@/lib/llm/extract-structured";
@@ -51,18 +51,18 @@ export async function POST(request: Request) {
     if (err instanceof Error && err.message === "MISSING_API_KEY") {
       return apiError(
         "MISSING_API_KEY",
-        "ANTHROPIC_API_KEY is not configured. Add it to .env.local and restart the server.",
+        "GROQ_API_KEY is not configured. Add it to .env.local and restart the server.",
         500,
       );
     }
-    if (err instanceof Anthropic.AuthenticationError) {
-      return apiError("LLM_AUTH_FAILED", "The Anthropic API key was rejected.", 500);
+    if (err instanceof Groq.AuthenticationError) {
+      return apiError("LLM_AUTH_FAILED", "The Groq API key was rejected.", 500);
     }
-    if (err instanceof Anthropic.RateLimitError) {
-      return apiError("LLM_RATE_LIMITED", "The Anthropic API rate-limited this request.", 429);
+    if (err instanceof Groq.RateLimitError) {
+      return apiError("LLM_RATE_LIMITED", "The Groq API rate-limited this request.", 429);
     }
-    if (err instanceof Anthropic.APIError) {
-      return apiError("LLM_API_ERROR", "The Anthropic API returned an error.", 502);
+    if (err instanceof Groq.APIError) {
+      return apiError("LLM_API_ERROR", "The Groq API returned an error.", 502);
     }
     console.error("jd parse failed", err);
     return apiError("INTERNAL_ERROR", "Failed to parse the job description.", 500);
