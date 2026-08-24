@@ -49,6 +49,7 @@
   --color-status-good: var(--status-good);
   --color-status-warning: var(--status-warning);
   --color-status-critical: var(--status-critical);
+  --color-delta-good-text: var(--delta-good-text);
 }
 
 :root {
@@ -90,6 +91,11 @@
   --status-good: #0ca30c;
   --status-warning: #fab219;
   --status-critical: #d03b3b;
+  /* --status-good fails WCAG AA (4.5:1) for normal-size text at 3.27:1 on the light surface —
+     it's calibrated for icons/washes, not body text (dataviz skill: "text never wears the
+     data color"). This is the skill's separate, darker "success text" token for the few
+     places (score deltas) that do need green *text*, not just an icon. */
+  --delta-good-text: #006300;
 }
 
 .dark {
@@ -124,6 +130,9 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* On the dark surface --status-good itself already clears 4.5:1 (5.19:1), so the text-safe
+     token can just be the status color rather than needing its own darker step. */
+  --delta-good-text: var(--status-good);
 }
 
 @layer base {

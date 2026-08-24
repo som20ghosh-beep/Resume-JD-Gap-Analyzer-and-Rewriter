@@ -37,6 +37,13 @@ export function RequirementCoverageTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
+          {jd.requirements.length === 0 && (
+            <tr>
+              <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
+                No requirements were extracted from this job description.
+              </td>
+            </tr>
+          )}
           {jd.requirements.map((requirement) => {
             const suggestion = suggestionByRequirement.get(requirement.id);
             const status: CoverageStatus = matchedIds.has(requirement.id)

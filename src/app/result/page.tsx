@@ -10,6 +10,7 @@ import { CategoryComparison } from "@/components/analysis/category-comparison";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LoadingRedirect } from "@/components/status/loading-redirect";
 
 type ExportFormat = "pdf" | "docx" | "txt";
 const EXPORT_FORMATS: { format: ExportFormat; label: string }[] = [
@@ -34,7 +35,7 @@ export default function ResultPage() {
     if (!hasApplied) router.replace("/");
   }, [hasApplied, router]);
 
-  if (!hasApplied || !baselineScore || !newScore || !newResume) return null;
+  if (!hasApplied || !baselineScore || !newScore || !newResume) return <LoadingRedirect />;
 
   const delta = Math.round((newScore.total - baselineScore.total) * 10) / 10;
   const changelogLines = (changelog ?? "").split("\n").filter(Boolean);
@@ -52,7 +53,7 @@ export default function ResultPage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Result</h1>
         <p className="text-sm text-muted-foreground">Here&apos;s the effect of the changes you approved.</p>
@@ -65,7 +66,7 @@ export default function ResultPage() {
             <span className="text-sm text-muted-foreground">Before</span>
           </div>
           <div className="text-center">
-            <span className={delta >= 0 ? "text-status-good text-2xl font-semibold" : "text-status-critical text-2xl font-semibold"}>
+            <span className={delta >= 0 ? "text-delta-good-text text-2xl font-semibold" : "text-status-critical text-2xl font-semibold"}>
               {delta > 0 ? "+" : ""}
               {delta}
             </span>
@@ -92,13 +93,17 @@ export default function ResultPage() {
           <CardTitle className="text-base">Changelog</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-1.5 text-sm text-muted-foreground">
-            {changelogLines.map((line, i) => (
-              <li key={i} className={line.startsWith("-") ? "pl-4" : "font-medium text-foreground"}>
-                {line.replace(/^-\s*/, "")}
-              </li>
-            ))}
-          </ul>
+          {changelogLines.length > 0 ? (
+            <ul className="space-y-1.5 text-sm text-muted-foreground">
+              {changelogLines.map((line, i) => (
+                <li key={i} className={line.startsWith("-") ? "pl-4" : "font-medium text-foreground"}>
+                  {line.replace(/^-\s*/, "")}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No changes were recorded for this version.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -121,8 +126,9 @@ export default function ResultPage() {
                 variant="outline"
                 onClick={() => handleDownload(format)}
                 disabled={downloading !== null}
+                aria-busy={downloading === format}
               >
-                {downloading === format ? <Loader2 className="animate-spin" /> : <Download />}
+                {downloading === format ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
                 {label}
               </Button>
             ))}

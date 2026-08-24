@@ -32,6 +32,7 @@ export function JdInput({
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
           placeholder="Paste the full job description here…"
+          aria-label="Job description text"
           rows={10}
           className="text-sm"
         />
@@ -42,6 +43,7 @@ export function JdInput({
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
           placeholder="https://company.com/careers/job-posting"
+          aria-label="Job posting URL"
         />
       </TabsContent>
     </Tabs>

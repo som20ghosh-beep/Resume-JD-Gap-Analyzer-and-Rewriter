@@ -10,6 +10,7 @@ import { GapsPanel } from "@/components/suggestions/gaps-panel";
 import { ProjectedScoreBar } from "@/components/suggestions/projected-score-bar";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LoadingRedirect } from "@/components/status/loading-redirect";
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function ReviewPage() {
     if (!hasAnalysis) router.replace("/");
   }, [hasAnalysis, router]);
 
-  if (!hasAnalysis || !resume) return null;
+  if (!hasAnalysis || !resume) return <LoadingRedirect />;
 
   const reviewable = suggestions.filter((s) => s.action === "REPHRASE" || s.action === "CONFIRM");
   const gaps = suggestions.filter((s) => s.action === "GAP");
@@ -46,7 +47,7 @@ export default function ReviewPage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Review suggestions</h1>
         <p className="text-sm text-muted-foreground">
@@ -79,7 +80,12 @@ export default function ReviewPage() {
       <GapsPanel gaps={gaps} />
 
       {reviewable.length > 0 && (
-        <Button onClick={handleApply} disabled={approvedCount === 0 || isApplying} className="self-start">
+        <Button
+          onClick={handleApply}
+          disabled={approvedCount === 0 || isApplying}
+          aria-busy={isApplying}
+          className="self-start"
+        >
           {isApplying && <Loader2 className="animate-spin" />}
           {isApplying ? "Applying…" : `Apply ${approvedCount} approved change${approvedCount === 1 ? "" : "s"}`}
         </Button>

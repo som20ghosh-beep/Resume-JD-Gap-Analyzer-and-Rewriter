@@ -86,7 +86,11 @@ export function ResumeDropzone({
           </Button>
         </>
       )}
-      {error && <p className="text-xs text-status-critical">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-status-critical">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

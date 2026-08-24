@@ -33,7 +33,7 @@ export function CategoryComparison({ before, after }: { before: AtsCategory[]; a
               <span className="flex items-center gap-2 tabular-nums text-muted-foreground">
                 {beforeScore} → {afterCat.score}/{max}
                 {delta !== 0 && (
-                  <span className={cn("font-medium", delta > 0 ? "text-status-good" : "text-status-critical")}>
+                  <span className={cn("font-medium", delta > 0 ? "text-delta-good-text" : "text-status-critical")}>
                     {delta > 0 ? "+" : ""}
                     {delta}
                   </span>

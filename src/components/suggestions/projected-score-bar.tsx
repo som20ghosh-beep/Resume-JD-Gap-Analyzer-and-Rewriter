@@ -32,13 +32,13 @@ export function ProjectedScoreBar() {
   const pendingRephraseCount = suggestions.filter((s) => s.action === "REPHRASE" && s.status === "PENDING").length;
 
   return (
-    <div className="sticky top-0 z-10 -mx-8 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/95 px-8 py-3 backdrop-blur">
-      <div className="flex items-baseline gap-2">
+    <div className="sticky top-0 z-10 -mx-4 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+      <div className="flex items-baseline gap-2" role="status" aria-live="polite">
         <span className="text-sm text-muted-foreground">Projected score</span>
         <span className="text-2xl font-semibold text-foreground">{Math.round(projectedTotal)}</span>
         {delta !== 0 && (
           <span
-            className={cn("text-sm font-medium", delta > 0 ? "text-status-good" : "text-status-critical")}
+            className={cn("text-sm font-medium", delta > 0 ? "text-delta-good-text" : "text-status-critical")}
           >
             {delta > 0 ? "+" : ""}
             {delta}

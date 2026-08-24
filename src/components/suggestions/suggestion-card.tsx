@@ -54,6 +54,7 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
             <Textarea
               value={draftText}
               onChange={(e) => setDraftText(e.target.value)}
+              aria-label={`Edit proposed text for "${suggestion.requirementText}"`}
               rows={3}
               className="text-sm"
               autoFocus
@@ -86,10 +87,16 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
             variant={isApproved ? "default" : "outline"}
             disabled={!canApprove}
             onClick={approve}
+            aria-pressed={isApproved}
           >
             <Check /> {isEditing ? "Save & approve" : "Approve"}
           </Button>
-          <Button size="sm" variant={isRejected ? "destructive" : "outline"} onClick={reject}>
+          <Button
+            size="sm"
+            variant={isRejected ? "destructive" : "outline"}
+            onClick={reject}
+            aria-pressed={isRejected}
+          >
             <X /> Reject
           </Button>
           {suggestion.action === "REPHRASE" && !isEditing && (

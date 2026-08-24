@@ -9,6 +9,7 @@ import { CategoryBreakdown } from "@/components/analysis/category-breakdown";
 import { RequirementCoverageTable } from "@/components/analysis/requirement-coverage-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LoadingRedirect } from "@/components/status/loading-redirect";
 
 export default function AnalyzePage() {
   const router = useRouter();
@@ -22,14 +23,14 @@ export default function AnalyzePage() {
     if (!hasAnalysis) router.replace("/");
   }, [hasAnalysis, router]);
 
-  if (!hasAnalysis || !resume || !jd || !baselineScore) return null;
+  if (!hasAnalysis || !resume || !jd || !baselineScore) return <LoadingRedirect />;
 
   const rephraseCount = suggestions.filter((s) => s.action === "REPHRASE").length;
   const confirmCount = suggestions.filter((s) => s.action === "CONFIRM").length;
   const gapCount = suggestions.filter((s) => s.action === "GAP").length;
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Analysis</h1>
         <p className="text-sm text-muted-foreground">

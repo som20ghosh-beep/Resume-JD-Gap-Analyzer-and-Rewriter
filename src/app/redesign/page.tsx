@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, Loader2, TriangleAlert } from "lucide-react";
 import { useReviewStore } from "@/store/review-store";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LoadingRedirect } from "@/components/status/loading-redirect";
 
 type ExportFormat = "pdf" | "docx" | "txt";
 const EXPORT_FORMATS: { format: ExportFormat; label: string }[] = [
@@ -26,8 +27,7 @@ const EXPORT_FORMATS: { format: ExportFormat; label: string }[] = [
 // fitting one page, rather than an arbitrary aspect ratio.
 const PAGE_WIDTH = 850;
 const PAGE_HEIGHT = 1100;
-const PREVIEW_WIDTH = 480;
-const PREVIEW_SCALE = PREVIEW_WIDTH / PAGE_WIDTH;
+const MAX_PREVIEW_WIDTH = 480;
 
 export default function RedesignPage() {
   const router = useRouter();
@@ -38,11 +38,30 @@ export default function RedesignPage() {
   const [downloading, setDownloading] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Measured rather than hardcoded: on a narrow phone viewport a fixed 480px preview would
+  // overflow the screen, so the scale is derived from however wide the container actually
+  // renders (capped at MAX_PREVIEW_WIDTH on larger screens).
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+  const [previewWidth, setPreviewWidth] = useState(MAX_PREVIEW_WIDTH);
+
+  useEffect(() => {
+    const el = previewContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setPreviewWidth(width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const previewScale = previewWidth / PAGE_WIDTH;
+
   useEffect(() => {
     if (!hasApplied) router.replace("/");
   }, [hasApplied, router]);
 
-  if (!hasApplied || !newResume) return null;
+  if (!hasApplied || !newResume) return <LoadingRedirect />;
 
   const handleDownload = async (format: ExportFormat) => {
     setError(null);
@@ -57,7 +76,7 @@ export default function RedesignPage() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Redesign</h1>
         <p className="text-sm text-muted-foreground">
@@ -84,8 +103,9 @@ export default function RedesignPage() {
 
         <Card className="flex items-center justify-center bg-muted/30 p-6">
           <div
-            className="overflow-hidden rounded border border-border bg-white shadow-sm"
-            style={{ width: PREVIEW_WIDTH, height: PAGE_HEIGHT * PREVIEW_SCALE }}
+            ref={previewContainerRef}
+            className="w-full max-w-[480px] overflow-hidden rounded border border-border bg-white shadow-sm"
+            style={{ height: PAGE_HEIGHT * previewScale }}
           >
             <IframePreview
               styles={TEMPLATES[templateId].styles}
@@ -93,7 +113,7 @@ export default function RedesignPage() {
                 width: PAGE_WIDTH,
                 height: PAGE_HEIGHT,
                 border: "none",
-                transform: `scale(${PREVIEW_SCALE})`,
+                transform: `scale(${previewScale})`,
                 transformOrigin: "top left",
               }}
             >
@@ -118,6 +138,7 @@ export default function RedesignPage() {
             variant="outline"
             onClick={() => handleDownload(format)}
             disabled={downloading !== null}
+            aria-busy={downloading === format}
           >
             {downloading === format ? <Loader2 className="animate-spin" /> : <Download />}
             {label}

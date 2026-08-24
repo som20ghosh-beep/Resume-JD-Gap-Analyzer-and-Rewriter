@@ -56,7 +56,7 @@ export function ScoreGauge({
           className="transition-[stroke-dashoffset] duration-500 ease-out"
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden="true">
         <span className="text-5xl font-semibold text-foreground">{Math.round(clamped)}</span>
         <span className="text-xs text-muted-foreground">out of 100</span>
       </div>

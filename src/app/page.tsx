@@ -64,7 +64,7 @@ export default function Home() {
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-8">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 sm:p-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">ResumeFit</h1>
         <p className="text-sm text-muted-foreground">
@@ -108,8 +108,8 @@ export default function Home() {
       )}
 
       {step === "parsing" && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Parsing your resume and job description…
+        <div role="status" aria-live="polite" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" /> Parsing your resume and job description…
         </div>
       )}
 
@@ -128,7 +128,7 @@ export default function Home() {
                   education entr{resume.education.length === 1 ? "y" : "ies"}
                 </p>
                 {resume.parseWarnings.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-status-warning">
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
                     {resume.parseWarnings.map((w, i) => (
                       <li key={i}>{w}</li>
                     ))}
@@ -150,8 +150,8 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button onClick={handleAnalyze} disabled={step === "analyzing"}>
-              {step === "analyzing" && <Loader2 className="animate-spin" />}
+            <Button onClick={handleAnalyze} disabled={step === "analyzing"} aria-busy={step === "analyzing"}>
+              {step === "analyzing" && <Loader2 className="animate-spin" aria-hidden="true" />}
               {step === "analyzing" ? "Analyzing…" : "Looks good — analyze"}
             </Button>
             <Button
