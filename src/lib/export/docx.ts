@@ -1,4 +1,4 @@
-import { Document, HeadingLevel, Packer, Paragraph, TextRun, type IStylesOptions } from "docx";
+import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun, type IStylesOptions } from "docx";
 import type { Resume } from "@/lib/types";
 import type { TemplateId } from "@/components/templates/registry";
 
@@ -26,6 +26,19 @@ const TEMPLATE_STYLES: Record<TemplateId, IStylesOptions> = {
       document: { run: { font: "Arial", size: 19 } },
       title: { run: { size: 32 }, paragraph: { spacing: { after: 60 } } },
       heading1: { run: { size: 20 }, paragraph: { spacing: { before: 120, after: 60 } } },
+    },
+  },
+  classic: {
+    default: {
+      document: { run: { font: "Cambria", size: 21 } },
+      title: {
+        run: { size: 36, bold: true },
+        paragraph: { alignment: AlignmentType.CENTER, spacing: { after: 60 } },
+      },
+      heading1: {
+        run: { size: 24, bold: true },
+        paragraph: { alignment: AlignmentType.CENTER, spacing: { before: 240, after: 120 } },
+      },
     },
   },
 };

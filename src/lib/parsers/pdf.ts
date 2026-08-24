@@ -55,12 +55,31 @@ function signaturesAlign(a: number[], b: number[]): boolean {
 function detectMultiColumn(
   items: PositionedItem[],
   pageWidth: number,
+  rows: PositionedItem[][],
 ): { isMultiColumn: boolean; left: PositionedItem[]; right: PositionedItem[] } {
   const mid = pageWidth / 2;
   const left = items.filter((it) => it.x < mid);
   const right = items.filter((it) => it.x >= mid);
 
   if (left.length < 3 || right.length < 3) {
+    return { isMultiColumn: false, left, right };
+  }
+
+  // A genuine two-column resume's right-hand text flows on its own line cadence, independent
+  // of where the left column's lines break — so most rows carrying right-side text carry
+  // nothing on the left. A single-column template with right-aligned annotations (a location
+  // or date beside a company/degree line, as the Classic template renders) puts every
+  // right-side item on the SAME row as the left-side line it annotates. A volume-ratio guard
+  // alone wasn't reliable here — found by round-tripping a real multi-page resume through
+  // this exact template: the annotated page's right-side item count (9 of 52 total items)
+  // cleared any volume threshold low enough to still catch a real two-column page — but 100%
+  // of its right-side rows paired with left-side content on the same row, versus only 50% on
+  // the genuine two-column fixture (tests/fixtures/resume-two-column.pdf), where the right
+  // column's own paragraph breaks land on rows the left column has nothing on.
+  const rightRows = rows.filter((row) => row.some((it) => it.x >= mid));
+  const pairedRows = rightRows.filter((row) => row.some((it) => it.x < mid));
+  const pairedRatio = rightRows.length > 0 ? pairedRows.length / rightRows.length : 0;
+  if (pairedRatio >= 0.75) {
     return { isMultiColumn: false, left, right };
   }
 
@@ -129,7 +148,7 @@ export async function parsePdf(buffer: Buffer): Promise<Resume> {
     const rows = groupIntoRows(items);
     if (detectTable(rows)) tableLikePages++;
 
-    const { isMultiColumn, left, right } = detectMultiColumn(items, viewport.width);
+    const { isMultiColumn, left, right } = detectMultiColumn(items, viewport.width, rows);
     if (isMultiColumn) {
       multiColumnPages++;
       reconstructedLines.push(...rowsToLines(groupIntoRows(left)));

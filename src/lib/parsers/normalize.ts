@@ -236,8 +236,18 @@ function buildExperience(lines: RawLine[]): Experience[] {
   let current: Experience | null = null;
 
   for (const line of lines) {
-    const text = line.text.trim();
-    if (text.length === 0) continue;
+    const raw = line.text.trim();
+    if (raw.length === 0) continue;
+
+    // A tab marks a large horizontal gap pdf-parse leaves between two columns on the same
+    // visual row — the signal a right-aligned "Location" or "Date period" column beside the
+    // Company/Title text (as some templates render) leaves in extracted text. Split it off
+    // and apply the side text on its own, rather than letting it corrupt the main text as
+    // one run-on line.
+    const tabIdx = raw.indexOf("\t");
+    const text = tabIdx === -1 ? raw : raw.slice(0, tabIdx).trim();
+    const sideText = tabIdx === -1 ? null : raw.slice(tabIdx + 1).trim();
+    const sideDateMatch = sideText?.match(DATE_RANGE_RE);
 
     const dateMatch = text.match(DATE_RANGE_RE);
     if (dateMatch) {
@@ -274,6 +284,20 @@ function buildExperience(lines: RawLine[]): Experience[] {
       continue;
     }
 
+    // "Title \t Jan 2021 - Present": the side text is a date range for the entry `text`
+    // belongs to — handle exactly like a same-line date-range header, just sourced from the
+    // side column instead of embedded in `text` itself.
+    if (sideDateMatch) {
+      if (!current || current.bullets.length > 0 || current.startDate !== "") {
+        current = newExperienceEntry(text);
+        entries.push(current);
+      } else {
+        current.title = current.title ? `${current.title} ${text}` : text;
+      }
+      applyDates(current, sideDateMatch[0]);
+      continue;
+    }
+
     // A non-date, non-bullet line starts a new entry once the current one already has a
     // date or bullets — otherwise (two header-ish lines in a row) it's extra header context.
     if (!current || current.bullets.length > 0 || current.startDate !== "") {
@@ -282,6 +306,9 @@ function buildExperience(lines: RawLine[]): Experience[] {
     } else {
       current.title = current.title ? `${current.title} ${text}` : text;
     }
+
+    // "Company \t Location": a non-date side text on a header line is the entry's location.
+    if (sideText && !current.location) current.location = sideText;
   }
 
   return entries;
@@ -316,8 +343,16 @@ function buildEducation(lines: RawLine[]): Education[] {
   let current: Education | null = null;
 
   for (const line of lines) {
-    const text = line.text.trim();
-    if (text.length === 0) continue;
+    const raw = line.text.trim();
+    if (raw.length === 0) continue;
+
+    // A tab marks a large horizontal gap pdf-parse leaves between two columns on the same
+    // visual row — e.g. "Bachelor's Degree, Field \t 2012", the Classic template's
+    // right-aligned year column. Only trust it as a year if that's genuinely all it is.
+    const tabIdx = raw.indexOf("\t");
+    const text = tabIdx === -1 ? raw : raw.slice(0, tabIdx).trim();
+    const rawSideText = tabIdx === -1 ? null : raw.slice(tabIdx + 1).trim();
+    const sideYear = rawSideText && /^\(?(19|20)\d{2}\)?$/.test(rawSideText) ? rawSideText.replace(/[()]/g, "") : null;
 
     const rangeMatch = text.match(DATE_RANGE_RE);
     const withoutRange = rangeMatch ? text.replace(DATE_RANGE_RE, "").trim() : null;
@@ -328,18 +363,12 @@ function buildEducation(lines: RawLine[]): Education[] {
     // pattern as buildExperience's date-only lines.
     if (rangeMatch && withoutRange === "") {
       if (current && !current.year) current.year = lastYearIn(rangeMatch[0]);
-      continue;
-    }
-
-    // A bare "(2012)" or "2012" on its own line — a single graduation year, not a range —
-    // is the same word-wrap situation: a long "Degree, Field, Institution (Year)" line that
-    // wraps right before the year leaves it stranded on its own physical line.
-    if (/^\(?(19|20)\d{2}\)?$/.test(text)) {
+    } else if (/^\(?(19|20)\d{2}\)?$/.test(text)) {
+      // A bare "(2012)" or "2012" on its own line — a single graduation year, not a range —
+      // is the same word-wrap situation: a long "Degree, Field, Institution (Year)" line
+      // that wraps right before the year leaves it stranded on its own physical line.
       if (current && !current.year) current.year = text.replace(/[()]/g, "");
-      continue;
-    }
-
-    if (DEGREE_RE.test(text) || YEAR_RE.test(text)) {
+    } else if (DEGREE_RE.test(text) || YEAR_RE.test(text)) {
       // A line that embeds a full date range ("Institution | 2006 – 2008") must have the
       // *whole* range stripped, and use the range's end year — YEAR_RE alone only matches
       // one year, so a non-range replace would leave the second year of the pair dangling
@@ -357,26 +386,23 @@ function buildEducation(lines: RawLine[]): Education[] {
       if (current && current.degree === "" && !current.year) {
         current.degree = institutionPart || degreePart || cleaned;
         current.year = year;
-        continue;
+      } else {
+        current = {
+          id: newId("edu"),
+          institution: institutionPart,
+          degree: degreePart || institutionPart,
+          year,
+        };
+        entries.push(current);
       }
-
-      current = {
-        id: newId("edu"),
-        institution: institutionPart,
-        degree: degreePart || institutionPart,
-        year,
-      };
-      entries.push(current);
-      continue;
-    }
-
-    if (!current || (current.degree !== "" && current.year)) {
+    } else if (!current || (current.degree !== "" && current.year)) {
       current = { id: newId("edu"), institution: text, degree: "" };
       entries.push(current);
-      continue;
+    } else {
+      current.details = current.details ? `${current.details} ${text}` : text;
     }
 
-    current.details = current.details ? `${current.details} ${text}` : text;
+    if (sideYear && current && !current.year) current.year = sideYear;
   }
 
   return entries;
@@ -488,14 +514,20 @@ export function buildResume(
     // get misclassified as an "unrecognized heading" by the shape-based fallback below.
     let heading = index === 0 ? null : classifyHeading(line);
 
-    // A short Title-Case/ALL-CAPS line is normal, expected content inside Skills or Projects
-    // (a single skill, a one-word project name like "Nginx") — the shape-based "custom
-    // heading" guess (classifyHeading's fallback for PDFs, which have no style metadata) has
-    // no awareness of the section it's already inside and would otherwise peel that content
-    // out into a bogus top-level "unrecognized section", corrupting the list it belongs to.
-    // A real, known section synonym (`"section" in heading`) still always ends the section —
-    // only the ambiguous shape-only guess is suppressed here.
-    if (heading && !("section" in heading) && (current === "skills" || current === "projects")) {
+    // A short Title-Case/ALL-CAPS line is normal, expected content inside any already-
+    // established section — a single skill, a one-word project name like "Nginx", or (found
+    // via the Classic template, which puts a company/institution name alone on its own line
+    // rather than combined with the title on one line) a short company name like "Acme Corp"
+    // with no comma to break the shape check. The shape-based "custom heading" guess
+    // (classifyHeading's fallback for PDFs, which have no style metadata) has no awareness of
+    // the section it's already inside and would otherwise peel that content out into a bogus
+    // top-level "unrecognized section", corrupting whichever list it belongs to. A real, known
+    // section synonym (`"section" in heading`) still always ends the section and starts the
+    // next one — only the ambiguous shape-only guess is suppressed, and only once already
+    // inside a known section (never while `current` is null/"unrecognized" — a resume that
+    // replaces standard headings with custom ones, like "Career Journey" for "Experience",
+    // still needs the shape guess to catch that transition).
+    if (heading && !("section" in heading) && current !== null && current !== "unrecognized") {
       heading = null;
     }
 

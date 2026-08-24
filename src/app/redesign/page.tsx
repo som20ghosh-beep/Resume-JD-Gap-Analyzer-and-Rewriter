@@ -6,7 +6,6 @@ import { Download, Loader2, TriangleAlert } from "lucide-react";
 import { useReviewStore } from "@/store/review-store";
 import { downloadExport } from "@/lib/api-client";
 import { TEMPLATE_IDS, TEMPLATES, type TemplateId } from "@/components/templates/registry";
-import { ResumeBody } from "@/components/templates/resume-body";
 import { IframePreview } from "@/components/templates/iframe-preview";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -63,6 +62,8 @@ export default function RedesignPage() {
 
   if (!hasApplied || !newResume) return <LoadingRedirect />;
 
+  const PreviewBody = TEMPLATES[templateId].body;
+
   const handleDownload = async (format: ExportFormat) => {
     setError(null);
     setDownloading(format);
@@ -117,7 +118,7 @@ export default function RedesignPage() {
                 transformOrigin: "top left",
               }}
             >
-              <ResumeBody resume={newResume} />
+              <PreviewBody resume={newResume} />
             </IframePreview>
           </div>
         </Card>

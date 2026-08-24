@@ -35,6 +35,26 @@ describe("buildResume — short title-shaped lines inside Skills/Projects", () =
     expect(resume.parseWarnings.some((w) => /unrecognized section heading/i.test(w))).toBe(false);
   });
 
+  it("keeps a short, unpunctuated company name as experience content, not an unrecognized heading", () => {
+    // Found via the Classic template: it puts the company name alone on its own line
+    // ("Acme Corp") rather than combined with the title on one comma-joined line
+    // ("Acme Corp, Senior Engineer") the way ATS-Safe/Modern/Compact do — the comma in the
+    // combined form was accidentally what kept it from shape-matching as a heading before.
+    const lines: RawLine[] = [
+      line("Jane Doe"),
+      line("jane@example.com"),
+      line("Experience"),
+      line("Acme Corp"),
+      line("Senior Engineer\tJan 2021 – Present"),
+      line("• Led a small team of engineers."),
+    ];
+    const resume = buildResume(lines, lines.map((l) => l.text).join("\n"));
+
+    expect(resume.experience).toHaveLength(1);
+    expect(resume.experience[0].company).toBe("Acme Corp");
+    expect(resume.parseWarnings.some((w) => /unrecognized section heading/i.test(w))).toBe(false);
+  });
+
   it("still detects a genuinely unrecognized section heading outside Skills/Projects", () => {
     const lines: RawLine[] = [
       line("Jane Doe"),
@@ -123,6 +143,35 @@ describe("buildResume — word-wrapped PDF bullets", () => {
   });
 });
 
+describe("buildResume — tab-separated two-column experience rows", () => {
+  // The Classic template renders "Company [right-aligned] Location" and "Title
+  // [right-aligned] Date period" as same-row flex layouts — verified empirically that
+  // puppeteer's PDF output extracts these as one line with a tab where the gap is
+  // ("Acme Corp\tAustin, TX"). Without explicit handling, the whole joined line either
+  // corrupts the institution/degree split or the date range silently swallows the title.
+  it("splits a tab-joined 'Company \\t Location' / 'Title \\t Date range' pair correctly", () => {
+    const lines: RawLine[] = [
+      line("Jane Doe"),
+      line("jane@example.com"),
+      line("Experience"),
+      line("Acme Corp\tAustin, TX"),
+      line("Senior Engineer\tJan 2021 - Present"),
+      line("• Led a small team of engineers."),
+    ];
+    const resume = buildResume(lines, lines.map((l) => l.text).join("\n"));
+
+    expect(resume.experience).toHaveLength(1);
+    expect(resume.experience[0]).toMatchObject({
+      company: "Acme Corp",
+      title: "Senior Engineer",
+      location: "Austin, TX",
+      startDate: "Jan 2021",
+      endDate: "Present",
+    });
+    expect(resume.experience[0].bullets).toHaveLength(1);
+  });
+});
+
 describe("buildResume — education with a standalone date-range line", () => {
   // Reproduces a second real bug from the same report: "Institution | Degree" on one line,
   // then a bare "2008 – 2012" attendance-dates line on the next. Before the fix this created
@@ -151,6 +200,26 @@ describe("buildResume — education with a standalone date-range line", () => {
       institution: "Chinamaya Vidyalaya",
       year: "2008",
     });
+  });
+});
+
+describe("buildResume — tab-separated two-column education rows", () => {
+  // Same Classic-template pattern as the experience test above, applied to education: a
+  // right-aligned year column beside "Degree, Field" on the same row extracts as one
+  // tab-joined line.
+  it("picks up a year from a tab-separated side column", () => {
+    const lines: RawLine[] = [
+      line("Jane Doe"),
+      line("jane@example.com"),
+      line("Education"),
+      line("Bangalore Institute of Technology"),
+      line("Bachelor's Degree, Electrical Engineering\t2012"),
+    ];
+    const resume = buildResume(lines, lines.map((l) => l.text).join("\n"));
+
+    expect(resume.education).toHaveLength(1);
+    expect(resume.education[0].institution).toBe("Bangalore Institute of Technology");
+    expect(resume.education[0].year).toBe("2012");
   });
 });
 
