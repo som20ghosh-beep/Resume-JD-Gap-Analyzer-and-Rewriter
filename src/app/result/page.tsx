@@ -1,29 +1,55 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Download, Loader2, TriangleAlert } from "lucide-react";
 import { useReviewStore } from "@/store/review-store";
+import { downloadExport } from "@/lib/api-client";
 import { ScoreGauge } from "@/components/analysis/score-gauge";
 import { CategoryComparison } from "@/components/analysis/category-comparison";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+type ExportFormat = "pdf" | "docx" | "txt";
+const EXPORT_FORMATS: { format: ExportFormat; label: string }[] = [
+  { format: "pdf", label: "PDF" },
+  { format: "docx", label: "DOCX" },
+  { format: "txt", label: "TXT" },
+];
 
 export default function ResultPage() {
   const router = useRouter();
   const hasApplied = useReviewStore((s) => s.hasApplied);
   const baselineScore = useReviewStore((s) => s.baselineScore);
+  const newResume = useReviewStore((s) => s.newResume);
   const newScore = useReviewStore((s) => s.newScore);
   const changelog = useReviewStore((s) => s.changelog);
   const reset = useReviewStore((s) => s.reset);
+
+  const [downloading, setDownloading] = useState<ExportFormat | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hasApplied) router.replace("/");
   }, [hasApplied, router]);
 
-  if (!hasApplied || !baselineScore || !newScore) return null;
+  if (!hasApplied || !baselineScore || !newScore || !newResume) return null;
 
   const delta = Math.round((newScore.total - baselineScore.total) * 10) / 10;
   const changelogLines = (changelog ?? "").split("\n").filter(Boolean);
+
+  const handleDownload = async (format: ExportFormat) => {
+    setError(null);
+    setDownloading(format);
+    try {
+      await downloadExport(newResume.id, format);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to export as ${format.toUpperCase()}.`);
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
@@ -73,6 +99,34 @@ export default function ResultPage() {
               </li>
             ))}
           </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Download</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <TriangleAlert />
+              <AlertTitle>Couldn&apos;t export your resume</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {EXPORT_FORMATS.map(({ format, label }) => (
+              <Button
+                key={format}
+                variant="outline"
+                onClick={() => handleDownload(format)}
+                disabled={downloading !== null}
+              >
+                {downloading === format ? <Loader2 className="animate-spin" /> : <Download />}
+                {label}
+              </Button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 

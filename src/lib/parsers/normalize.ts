@@ -425,7 +425,19 @@ export function buildResume(
     // The very first content line is always the candidate's name, never a section heading —
     // without this guard, a two-word Title Case name (the overwhelmingly common case) would
     // get misclassified as an "unrecognized heading" by the shape-based fallback below.
-    const heading = index === 0 ? null : classifyHeading(line);
+    let heading = index === 0 ? null : classifyHeading(line);
+
+    // A short Title-Case/ALL-CAPS line is normal, expected content inside Skills or Projects
+    // (a single skill, a one-word project name like "Nginx") — the shape-based "custom
+    // heading" guess (classifyHeading's fallback for PDFs, which have no style metadata) has
+    // no awareness of the section it's already inside and would otherwise peel that content
+    // out into a bogus top-level "unrecognized section", corrupting the list it belongs to.
+    // A real, known section synonym (`"section" in heading`) still always ends the section —
+    // only the ambiguous shape-only guess is suppressed here.
+    if (heading && !("section" in heading) && (current === "skills" || current === "projects")) {
+      heading = null;
+    }
+
     if (heading) {
       if ("section" in heading) {
         current = heading.section;

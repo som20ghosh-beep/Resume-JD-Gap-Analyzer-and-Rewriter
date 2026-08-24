@@ -38,6 +38,30 @@ export async function analyze(
   return parseJsonOrThrow(res);
 }
 
+export async function downloadExport(resumeId: string, format: "pdf" | "docx" | "txt"): Promise<void> {
+  const res = await fetch("/api/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resumeId, format }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error?.message ?? "Failed to export the resume.");
+  }
+
+  const blob = await res.blob();
+  const fileName = res.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? `resume.${format}`;
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function applySuggestions(
   resumeId: string,
   approvedSuggestions: Suggestion[],
