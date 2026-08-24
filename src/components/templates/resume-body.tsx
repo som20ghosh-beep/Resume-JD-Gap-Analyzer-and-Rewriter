@@ -61,9 +61,13 @@ export function ResumeBody({ resume }: { resume: Resume }) {
         <>
           <h2>Education</h2>
           {resume.education.map((edu) => (
+            // Institution first, matching buildEducation()'s "Institution, Degree" parsing
+            // convention (same fix as the Company/Title order in Experience, phase 8) — the
+            // reverse order left the institution buried inside a comma-heavy degree/field
+            // string with no reliable delimiter to split back on.
             <p key={edu.id}>
-              {edu.degree}
-              {edu.field ? `, ${edu.field}` : ""}, {edu.institution}
+              {edu.institution}, {edu.degree}
+              {edu.field ? `, ${edu.field}` : ""}
               {edu.year ? ` (${edu.year})` : ""}
             </p>
           ))}

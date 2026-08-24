@@ -84,7 +84,9 @@ export async function renderResumeAsDocx(resume: Resume, templateId: TemplateId 
   if (resume.education.length > 0) {
     children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, text: "Education" }));
     for (const edu of resume.education) {
-      const line = [`${edu.degree}${edu.field ? `, ${edu.field}` : ""}`, edu.institution, edu.year]
+      // Institution first — matches buildEducation()'s "Institution — Degree" parsing
+      // convention (same fix as Company/Title order in Experience, phase 8).
+      const line = [edu.institution, `${edu.degree}${edu.field ? `, ${edu.field}` : ""}`, edu.year]
         .filter(Boolean)
         .join(" — ");
       children.push(new Paragraph({ text: line }));

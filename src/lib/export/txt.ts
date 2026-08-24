@@ -33,8 +33,10 @@ export function renderResumeAsTxt(resume: Resume): string {
   if (resume.education.length > 0) {
     lines.push("EDUCATION");
     for (const edu of resume.education) {
+      // Institution first — matches buildEducation()'s "Institution, Degree" parsing
+      // convention (same fix as Company/Title order in Experience, phase 8).
       lines.push(
-        `${edu.degree}${edu.field ? `, ${edu.field}` : ""}, ${edu.institution}${edu.year ? ` (${edu.year})` : ""}`,
+        `${edu.institution}, ${edu.degree}${edu.field ? `, ${edu.field}` : ""}${edu.year ? ` (${edu.year})` : ""}`,
       );
     }
     lines.push("");

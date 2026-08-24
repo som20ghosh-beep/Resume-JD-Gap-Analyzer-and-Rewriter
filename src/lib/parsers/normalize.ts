@@ -53,7 +53,9 @@ const SECTION_SYNONYMS: Record<SectionKey, string[]> = {
   ],
   projects: ["projects", "personal projects", "side projects", "selected projects"],
   certifications: [
+    "certification",
     "certifications",
+    "certificate",
     "certificates",
     "licenses",
     "licenses & certifications",
@@ -192,6 +194,26 @@ function isBulletLine(line: RawLine): boolean {
   return line.isListItem === true || BULLET_PREFIX_RE.test(line.text.trim());
 }
 
+/** True when `text` is very likely the word-wrapped remainder of `lastBullet`, not a new
+ *  entry header — PDF text extraction has no notion of "this line is still part of the
+ *  previous bulleted paragraph" the way DOCX's <li> does, so a long bullet that wraps to a
+ *  second or third visual line arrives as separate, unprefixed RawLines. Without this check
+ *  each wrapped fragment was misread as a brand-new job entry (empty company, the fragment as
+ *  "title", default startDate ""/endDate "Present" — rendering as a bogus bold line followed
+ *  by a stray "– Present"), scattering and duplicating the real content.
+ *
+ *  Two independent signals, either sufficient: the fragment starts lowercase (still mid
+ *  sentence — a real header is always capitalized), or the last bullet has no terminal
+ *  punctuation yet (the sentence isn't finished). A line containing " | ", the unambiguous
+ *  company/title delimiter, is never treated as a continuation even if one signal fires. */
+function looksLikeBulletContinuation(text: string, lastBullet: { text: string } | undefined): boolean {
+  if (!lastBullet) return false;
+  if (text.includes(" | ")) return false;
+  const startsLowercase = /^[a-z]/.test(text);
+  const lastBulletUnfinished = !/[.!?]$/.test(lastBullet.text.trim());
+  return startsLowercase || lastBulletUnfinished;
+}
+
 function newExperienceEntry(header: string): Experience {
   const [companyPart, titlePart] = splitHeaderParts(header);
   return {
@@ -246,6 +268,12 @@ function buildExperience(lines: RawLine[]): Experience[] {
       continue;
     }
 
+    const lastBullet = current?.bullets[current.bullets.length - 1];
+    if (lastBullet && looksLikeBulletContinuation(text, lastBullet)) {
+      lastBullet.text = `${lastBullet.text} ${text}`.trim();
+      continue;
+    }
+
     // A non-date, non-bullet line starts a new entry once the current one already has a
     // date or bullets — otherwise (two header-ish lines in a row) it's extra header context.
     if (!current || current.bullets.length > 0 || current.startDate !== "") {
@@ -262,9 +290,12 @@ function buildExperience(lines: RawLine[]): Experience[] {
 function splitHeaderParts(text: string): [string, string] {
   const delimiters = [" — ", " – ", " - ", " | ", " at ", ", "];
   for (const d of delimiters) {
-    if (text.includes(d)) {
-      const [a, b] = text.split(d);
-      return [a.trim(), (b ?? "").trim()];
+    // indexOf + slice, not text.split(d): split() breaks on *every* occurrence, and a line
+    // with 3+ commas ("Institution, Degree, Field1, Field2") silently dropped everything
+    // past the second one when only the first two array elements were destructured.
+    const idx = text.indexOf(d);
+    if (idx !== -1) {
+      return [text.slice(0, idx).trim(), text.slice(idx + d.length).trim()];
     }
   }
   return [text, ""];
@@ -275,6 +306,11 @@ function extractEndDate(range: string): string {
   return (parts[1] ?? "").trim() || range.trim();
 }
 
+function lastYearIn(text: string): string | undefined {
+  const years = text.match(/\b(19|20)\d{2}\b/g);
+  return years?.[years.length - 1];
+}
+
 function buildEducation(lines: RawLine[]): Education[] {
   const entries: Education[] = [];
   let current: Education | null = null;
@@ -283,19 +319,44 @@ function buildEducation(lines: RawLine[]): Education[] {
     const text = line.text.trim();
     if (text.length === 0) continue;
 
+    const rangeMatch = text.match(DATE_RANGE_RE);
+    const withoutRange = rangeMatch ? text.replace(DATE_RANGE_RE, "").trim() : null;
+
+    // A standalone "2008 – 2012" line (attendance dates, no institution/degree text of its
+    // own) fills in the current entry's year — using the range's end/graduation year —
+    // rather than starting a bogus new entry keyed on stray leftover punctuation. Same
+    // pattern as buildExperience's date-only lines.
+    if (rangeMatch && withoutRange === "") {
+      if (current && !current.year) current.year = lastYearIn(rangeMatch[0]);
+      continue;
+    }
+
+    // A bare "(2012)" or "2012" on its own line — a single graduation year, not a range —
+    // is the same word-wrap situation: a long "Degree, Field, Institution (Year)" line that
+    // wraps right before the year leaves it stranded on its own physical line.
+    if (/^\(?(19|20)\d{2}\)?$/.test(text)) {
+      if (current && !current.year) current.year = text.replace(/[()]/g, "");
+      continue;
+    }
+
     if (DEGREE_RE.test(text) || YEAR_RE.test(text)) {
-      const yearMatch = text.match(YEAR_RE);
-      const [institutionPart, degreePart] = splitHeaderParts(
-        text.replace(YEAR_RE, "").trim(),
-      );
+      // A line that embeds a full date range ("Institution | 2006 – 2008") must have the
+      // *whole* range stripped, and use the range's end year — YEAR_RE alone only matches
+      // one year, so a non-range replace would leave the second year of the pair dangling
+      // and corrupt the institution/degree split below.
+      const year = rangeMatch ? lastYearIn(rangeMatch[0]) : text.match(YEAR_RE)?.[0];
+      const cleaned = (rangeMatch ? withoutRange! : text.replace(YEAR_RE, ""))
+        .replace(/[,|–—-]+$/, "")
+        .trim();
+      const [institutionPart, degreePart] = splitHeaderParts(cleaned);
 
       // A degree/year line right after an institution-only entry (no degree/year yet) fills
       // that entry in rather than starting a new one — "University" and "Degree, Year" are
       // commonly two separate lines. splitHeaderParts's first slot holds the degree name
       // here (e.g. "Bachelor of Science"), not an institution — we already have that.
       if (current && current.degree === "" && !current.year) {
-        current.degree = institutionPart || degreePart || text;
-        current.year = yearMatch?.[0];
+        current.degree = institutionPart || degreePart || cleaned;
+        current.year = year;
         continue;
       }
 
@@ -303,7 +364,7 @@ function buildEducation(lines: RawLine[]): Education[] {
         id: newId("edu"),
         institution: institutionPart,
         degree: degreePart || institutionPart,
-        year: yearMatch?.[0],
+        year,
       };
       entries.push(current);
       continue;
