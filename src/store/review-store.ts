@@ -8,28 +8,45 @@ type AnalysisResult = {
   suggestions: Suggestion[];
 };
 
-type ReviewState = AnalysisResult & {
-  hasAnalysis: boolean;
-  setAnalysis: (result: AnalysisResult) => void;
-  /** Merges a patch into one suggestion — used for approve/reject, edit-then-approve
-   *  (proposedText override), and CONFIRM's gating userInput. */
-  updateSuggestion: (id: string, patch: Partial<Suggestion>) => void;
-  approveAllRephrase: () => void;
-  reset: () => void;
+type ApplyResultState = {
+  newResume: Resume | null;
+  newScore: AtsScore | null;
+  changelog: string | null;
 };
 
-const EMPTY: AnalysisResult = {
+type ReviewState = AnalysisResult &
+  ApplyResultState & {
+    hasAnalysis: boolean;
+    hasApplied: boolean;
+    setAnalysis: (result: AnalysisResult) => void;
+    /** Merges a patch into one suggestion — used for approve/reject, edit-then-approve
+     *  (proposedText override), and CONFIRM's gating userInput. */
+    updateSuggestion: (id: string, patch: Partial<Suggestion>) => void;
+    approveAllRephrase: () => void;
+    setApplyResult: (result: { resume: Resume; newScore: AtsScore; changelog: string }) => void;
+    reset: () => void;
+  };
+
+const EMPTY_ANALYSIS: AnalysisResult = {
   resume: null as unknown as Resume,
   jd: null as unknown as JobDescription,
   baselineScore: null as unknown as AtsScore,
   suggestions: [],
 };
 
-export const useReviewStore = create<ReviewState>((set) => ({
-  ...EMPTY,
-  hasAnalysis: false,
+const EMPTY_APPLY: ApplyResultState = {
+  newResume: null,
+  newScore: null,
+  changelog: null,
+};
 
-  setAnalysis: (result) => set({ ...result, hasAnalysis: true }),
+export const useReviewStore = create<ReviewState>((set) => ({
+  ...EMPTY_ANALYSIS,
+  ...EMPTY_APPLY,
+  hasAnalysis: false,
+  hasApplied: false,
+
+  setAnalysis: (result) => set({ ...result, ...EMPTY_APPLY, hasAnalysis: true, hasApplied: false }),
 
   updateSuggestion: (id, patch) =>
     set((state) => ({
@@ -43,5 +60,8 @@ export const useReviewStore = create<ReviewState>((set) => ({
       ),
     })),
 
-  reset: () => set({ ...EMPTY, hasAnalysis: false }),
+  setApplyResult: ({ resume, newScore, changelog }) =>
+    set({ newResume: resume, newScore, changelog, hasApplied: true }),
+
+  reset: () => set({ ...EMPTY_ANALYSIS, ...EMPTY_APPLY, hasAnalysis: false, hasApplied: false }),
 }));

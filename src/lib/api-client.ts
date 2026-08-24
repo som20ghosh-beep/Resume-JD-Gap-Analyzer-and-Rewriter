@@ -37,3 +37,15 @@ export async function analyze(
   });
   return parseJsonOrThrow(res);
 }
+
+export async function applySuggestions(
+  resumeId: string,
+  approvedSuggestions: Suggestion[],
+): Promise<{ resume: Resume; newScore: AtsScore; changelog: string }> {
+  const res = await fetch("/api/apply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resumeId, approvedSuggestions }),
+  });
+  return parseJsonOrThrow(res);
+}

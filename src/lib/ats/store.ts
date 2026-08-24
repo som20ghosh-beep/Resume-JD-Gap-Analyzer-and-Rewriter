@@ -14,6 +14,17 @@ export async function saveAtsScoreRecord(
   return score;
 }
 
+/** The jdId a resume was most recently scored/analyzed against — lets /api/apply recover
+ *  which JobDescription to rescore with, since its request body only carries resumeId
+ *  (spec §7: `POST /api/apply → { resumeId, approvedSuggestions }`, no jdId). */
+export async function getLatestJdIdForResume(documentId: string): Promise<string | null> {
+  const row = await prisma.atsScoreRecord.findFirst({
+    where: { documentId },
+    orderBy: { createdAt: "desc" },
+  });
+  return row?.jdId ?? null;
+}
+
 export async function listAtsScoreRecords(documentId: string, jdId: string) {
   const rows = await prisma.atsScoreRecord.findMany({
     where: { documentId, jdId },

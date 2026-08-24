@@ -21,7 +21,7 @@ export function ProjectedScoreBar() {
   const projectedTotal = useMemo(() => {
     if (!resume || !jd) return null;
     const approved = suggestions.filter((s) => s.status === "APPROVED");
-    const preview = applyApprovedSuggestions(resume, approved);
+    const { resume: preview } = applyApprovedSuggestions(resume, approved);
     return computeAtsScore(preview, jd).total;
   }, [resume, jd, suggestions]);
 

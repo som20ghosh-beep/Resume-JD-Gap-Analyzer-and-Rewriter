@@ -4,14 +4,17 @@ function newId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
-function applyRephrase(resume: Resume, suggestion: Suggestion): Resume {
+/** Returns the updated resume, or null if this suggestion couldn't actually be applied (no
+ *  proposedText, or targetItemId doesn't resolve to anything on this resume) — null lets the
+ *  caller know it didn't take effect, rather than silently returning the input unchanged. */
+function applyRephrase(resume: Resume, suggestion: Suggestion): Resume | null {
   const proposedText = suggestion.proposedText;
-  if (!proposedText) return resume;
+  if (!proposedText) return null;
 
   const itemId = suggestion.targetItemId;
   if (!itemId) {
     // No specific item targeted — the only well-formed case is a summary rewrite.
-    return suggestion.targetSection === "summary" ? { ...resume, summary: proposedText } : resume;
+    return suggestion.targetSection === "summary" ? { ...resume, summary: proposedText } : null;
   }
 
   const bulletOwner = resume.experience.find((exp) => exp.bullets.some((b) => b.id === itemId));
@@ -57,14 +60,15 @@ function applyRephrase(resume: Resume, suggestion: Suggestion): Resume {
   }
 
   // targetItemId didn't resolve to anything on this resume — ignore rather than guess where it goes.
-  return resume;
+  return null;
 }
 
 /** A CONFIRM only ever reaches here with the user's own supplied detail already attached
  *  (spec §3.1: "store their input verbatim; do not embellish it") — we never invent wording
  *  for it. The confirmed skill is added by its exact requirement text (never a paraphrase),
  *  so nothing beyond what the user attested to appears on the resume. */
-function applyConfirm(resume: Resume, suggestion: Suggestion): Resume {
+function applyConfirm(resume: Resume, suggestion: Suggestion): Resume | null {
+  if (!suggestion.userInput?.trim()) return null;
   const newSkill: Resume["skills"][number] = {
     id: newId("skill"),
     name: suggestion.requirementText,
@@ -75,27 +79,37 @@ function applyConfirm(resume: Resume, suggestion: Suggestion): Resume {
   return { ...resume, skills: [...resume.skills, newSkill] };
 }
 
+export type ApplyResult = {
+  resume: Resume;
+  /** The subset of the input, in original order, that actually took effect — one predicate,
+   *  computed once, so a changelog built from this list can never drift from what the resume
+   *  actually contains (spec §7 phase 7: "generate changelog"). */
+  applied: Suggestion[];
+};
+
 /** Applies a set of APPROVED suggestions to a Resume, producing a new Resume (never mutates
  *  the input — spec §3.3: edits are non-destructive). Used both for the live "projected score"
- *  preview in the review UI and, later, as the core of the persisted apply flow (phase 7).
+ *  preview in the review UI (phase 6) and as the core of the persisted apply flow (phase 7).
  *
  *  Every safety rule from spec §3.1 is enforced here, not just upstream: a suggestion must
  *  carry status "APPROVED" to have any effect, GAP suggestions are always skipped even if
  *  passed in, and a CONFIRM with no user-supplied input is skipped rather than guessed. */
-export function applyApprovedSuggestions(resume: Resume, suggestions: Suggestion[]): Resume {
+export function applyApprovedSuggestions(resume: Resume, suggestions: Suggestion[]): ApplyResult {
   let next = resume;
+  const applied: Suggestion[] = [];
 
   for (const suggestion of suggestions) {
     if (suggestion.status !== "APPROVED") continue;
     if (suggestion.action === "GAP") continue;
 
-    if (suggestion.action === "REPHRASE") {
-      next = applyRephrase(next, suggestion);
-    } else if (suggestion.action === "CONFIRM") {
-      if (!suggestion.userInput?.trim()) continue;
-      next = applyConfirm(next, suggestion);
+    const updated =
+      suggestion.action === "REPHRASE" ? applyRephrase(next, suggestion) : applyConfirm(next, suggestion);
+
+    if (updated) {
+      next = updated;
+      applied.push(suggestion);
     }
   }
 
-  return next;
+  return { resume: next, applied };
 }
