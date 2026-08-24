@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderResumeAsPdf } from "@/lib/export/pdf";
 import { parsePdf } from "@/lib/parsers/pdf";
+import { TEMPLATE_IDS } from "@/components/templates/registry";
 import type { Resume } from "@/lib/types";
 
 function makeResume(): Resume {
@@ -44,11 +45,15 @@ function makeResume(): Resume {
 }
 
 describe("renderResumeAsPdf round-trip", () => {
-  it(
-    "re-parses into a structurally equivalent resume with no formatting-hostile signals",
-    async () => {
+  // All three templates share the same underlying markup (spec §6 screen 5: "switching
+  // templates only changes presentation") — Compact's much tighter spacing is the one most
+  // likely to accidentally affect PDF text-row grouping, so it's worth verifying all three
+  // rather than assuming the shared-structure guarantee holds under different CSS.
+  it.each(TEMPLATE_IDS)(
+    "template '%s' re-parses into a structurally equivalent resume with no formatting-hostile signals",
+    async (templateId) => {
       const original = makeResume();
-      const buffer = await renderResumeAsPdf(original);
+      const buffer = await renderResumeAsPdf(original, templateId);
       const reparsed = await parsePdf(buffer);
 
       expect(reparsed.contact.email).toBe(original.contact.email);
@@ -64,8 +69,8 @@ describe("renderResumeAsPdf round-trip", () => {
       expect(reparsed.skills.map((s) => s.name)).toEqual(expect.arrayContaining(["JavaScript", "Kubernetes"]));
       expect(reparsed.projects?.[0]?.name).toBe("OpenTrack");
 
-      // The ATS-Safe template must score full marks on formatting: no multi-column/table
-      // detection, single-column reading order.
+      // Every template must score full marks on formatting: no multi-column/table detection,
+      // single-column reading order.
       const hostileWarnings = reparsed.parseWarnings.filter((w) => /multi-column|table/i.test(w));
       expect(hostileWarnings).toEqual([]);
     },

@@ -5,13 +5,12 @@ import { getLatestResumeVersion } from "@/lib/resume/versions";
 import { renderResumeAsTxt } from "@/lib/export/txt";
 import { renderResumeAsDocx } from "@/lib/export/docx";
 import { renderResumeAsPdf } from "@/lib/export/pdf";
+import { TEMPLATE_IDS } from "@/components/templates/registry";
 
-// Only "ats-safe" exists until phase 9 adds the Modern/Compact templates — reject anything
-// else explicitly now rather than silently ignoring an id the UI doesn't offer yet.
 const BodySchema = z.object({
   resumeId: z.string().min(1),
   format: z.enum(["pdf", "docx", "txt"]),
-  templateId: z.enum(["ats-safe"]).default("ats-safe"),
+  templateId: z.enum(TEMPLATE_IDS).default("ats-safe"),
 });
 
 const CONTENT_TYPE: Record<z.infer<typeof BodySchema>["format"], string> = {
@@ -45,9 +44,9 @@ export async function POST(request: Request) {
   try {
     const payload: BodyInit =
       body.format === "pdf"
-        ? new Blob([new Uint8Array(await renderResumeAsPdf(resume))])
+        ? new Blob([new Uint8Array(await renderResumeAsPdf(resume, body.templateId))])
         : body.format === "docx"
-          ? new Blob([new Uint8Array(await renderResumeAsDocx(resume))])
+          ? new Blob([new Uint8Array(await renderResumeAsDocx(resume, body.templateId))])
           : renderResumeAsTxt(resume);
 
     return new NextResponse(payload, {

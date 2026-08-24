@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderResumeAsDocx } from "@/lib/export/docx";
 import { parseDocx } from "@/lib/parsers/docx";
+import { TEMPLATE_IDS } from "@/components/templates/registry";
 import type { Resume } from "@/lib/types";
 
 function makeResume(): Resume {
@@ -58,9 +59,9 @@ function makeResume(): Resume {
 }
 
 describe("renderResumeAsDocx round-trip", () => {
-  it("re-parses into a structurally equivalent resume with no spurious parse warnings", async () => {
+  it.each(TEMPLATE_IDS)("template '%s' re-parses into a structurally equivalent resume with no spurious parse warnings", async (templateId) => {
     const original = makeResume();
-    const buffer = await renderResumeAsDocx(original);
+    const buffer = await renderResumeAsDocx(original, templateId);
     const reparsed = await parseDocx(buffer);
 
     expect(reparsed.contact.name).toBe(original.contact.name);

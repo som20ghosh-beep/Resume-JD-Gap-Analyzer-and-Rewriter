@@ -1,6 +1,6 @@
 import puppeteer from "puppeteer";
 import type { Resume } from "@/lib/types";
-import { AtsSafeTemplate } from "@/components/templates/ats-safe";
+import { TEMPLATES, type TemplateId } from "@/components/templates/registry";
 
 /** React template → HTML → puppeteer print-to-PDF (spec §2 stack table). A fresh browser is
  *  launched per export rather than pooled — simplicity over throughput for a single-user
@@ -11,9 +11,10 @@ import { AtsSafeTemplate } from "@/components/templates/ats-safe";
  *  component that imports react-dom/server"), since normally only Next's own rendering
  *  pipeline is supposed to touch it. A dynamic import happens at runtime, after bundling, so
  *  it isn't caught by that static analysis. */
-export async function renderResumeAsPdf(resume: Resume): Promise<Buffer> {
+export async function renderResumeAsPdf(resume: Resume, templateId: TemplateId = "ats-safe"): Promise<Buffer> {
   const { renderToStaticMarkup } = await import("react-dom/server");
-  const html = "<!DOCTYPE html>" + renderToStaticMarkup(<AtsSafeTemplate resume={resume} />);
+  const Template = TEMPLATES[templateId].component;
+  const html = "<!DOCTYPE html>" + renderToStaticMarkup(<Template resume={resume} />);
 
   const browser = await puppeteer.launch({ headless: true });
   try {

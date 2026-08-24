@@ -1,5 +1,34 @@
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { Document, HeadingLevel, Packer, Paragraph, TextRun, type IStylesOptions } from "docx";
 import type { Resume } from "@/lib/types";
+import type { TemplateId } from "@/components/templates/registry";
+
+// Cosmetic-only style overrides per template — font, color, and spacing on the built-in
+// Title/Heading1 styles. The paragraph *structure* below (heading levels, run splits, bullet
+// usage) never varies per template, since that structure is what the round-trip parser
+// depends on — only these visual definitions change, matching the PDF templates' contract
+// that switching templates changes presentation only (spec §6 screen 5).
+const TEMPLATE_STYLES: Record<TemplateId, IStylesOptions> = {
+  "ats-safe": {
+    default: { document: { run: { font: "Arial", size: 22 } } },
+  },
+  modern: {
+    default: {
+      document: { run: { font: "Calibri", size: 21 } },
+      title: { run: { color: "16425B", bold: true, size: 40 } },
+      heading1: {
+        run: { color: "16425B", bold: true, size: 24 },
+        paragraph: { spacing: { before: 240, after: 120 } },
+      },
+    },
+  },
+  compact: {
+    default: {
+      document: { run: { font: "Arial", size: 19 } },
+      title: { run: { size: 32 }, paragraph: { spacing: { after: 60 } } },
+      heading1: { run: { size: 20 }, paragraph: { spacing: { before: 120, after: 60 } } },
+    },
+  },
+};
 
 function contactLine(resume: Resume): string {
   const parts = [resume.contact.email, resume.contact.phone, resume.contact.location].filter(
@@ -8,7 +37,7 @@ function contactLine(resume: Resume): string {
   return [...parts, ...resume.contact.links.map((l) => l.url)].join(" | ");
 }
 
-export async function renderResumeAsDocx(resume: Resume): Promise<Buffer> {
+export async function renderResumeAsDocx(resume: Resume, templateId: TemplateId = "ats-safe"): Promise<Buffer> {
   const children: Paragraph[] = [
     new Paragraph({ heading: HeadingLevel.TITLE, text: resume.contact.name }),
   ];
@@ -90,6 +119,6 @@ export async function renderResumeAsDocx(resume: Resume): Promise<Buffer> {
     }
   }
 
-  const doc = new Document({ sections: [{ children }] });
+  const doc = new Document({ styles: TEMPLATE_STYLES[templateId], sections: [{ children }] });
   return Packer.toBuffer(doc);
 }

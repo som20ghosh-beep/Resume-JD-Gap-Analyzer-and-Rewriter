@@ -1,4 +1,5 @@
 import type { AtsScore, JobDescription, Resume, Suggestion } from "@/lib/types";
+import type { TemplateId } from "@/components/templates/registry";
 
 async function parseJsonOrThrow<T>(res: Response): Promise<T> {
   const body = await res.json();
@@ -38,11 +39,15 @@ export async function analyze(
   return parseJsonOrThrow(res);
 }
 
-export async function downloadExport(resumeId: string, format: "pdf" | "docx" | "txt"): Promise<void> {
+export async function downloadExport(
+  resumeId: string,
+  format: "pdf" | "docx" | "txt",
+  templateId: TemplateId = "ats-safe",
+): Promise<void> {
   const res = await fetch("/api/export", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resumeId, format }),
+    body: JSON.stringify({ resumeId, format, templateId }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);

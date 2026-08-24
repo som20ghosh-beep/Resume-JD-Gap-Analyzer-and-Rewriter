@@ -114,7 +114,7 @@ export default function ResultPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {EXPORT_FORMATS.map(({ format, label }) => (
               <Button
                 key={format}
@@ -126,7 +126,11 @@ export default function ResultPage() {
                 {label}
               </Button>
             ))}
+            <span className="text-xs text-muted-foreground">(ATS-Safe template)</span>
           </div>
+          <Button variant="link" className="mt-2 h-auto p-0" onClick={() => router.push("/redesign")}>
+            Want a different look? Try the template gallery →
+          </Button>
         </CardContent>
       </Card>
 
