@@ -67,6 +67,20 @@ export async function downloadExport(
   URL.revokeObjectURL(url);
 }
 
+export async function draftConfirmStatement(
+  resumeId: string,
+  requirementText: string,
+  rationale: string,
+): Promise<string> {
+  const res = await fetch("/api/suggestions/draft-confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resumeId, requirementText, rationale }),
+  });
+  const body = await parseJsonOrThrow<{ draft: string }>(res);
+  return body.draft;
+}
+
 export async function applySuggestions(
   resumeId: string,
   approvedSuggestions: Suggestion[],

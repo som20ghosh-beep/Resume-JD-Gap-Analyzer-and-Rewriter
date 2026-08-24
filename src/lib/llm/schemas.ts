@@ -54,3 +54,11 @@ export const SuggestionDraftSchema = z.object({
   suggestions: z.array(SuggestionDraftItemSchema),
 });
 export type SuggestionDraft = z.infer<typeof SuggestionDraftSchema>;
+
+/** Shape the LLM fills for a CONFIRM suggestion's "Generate" button — a starting-point draft
+ *  of the user's own supporting statement, not a final claim (see prompts/confirm-draft.ts
+ *  for the anti-fabrication rules this schema's single field is held to). */
+export const ConfirmDraftSchema = z.object({
+  draft: z.string(),
+});
+export type ConfirmDraft = z.infer<typeof ConfirmDraftSchema>;

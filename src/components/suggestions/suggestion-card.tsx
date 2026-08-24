@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, Loader2, Pencil, Sparkles, X } from "lucide-react";
 import type { Suggestion } from "@/lib/types";
 import { useReviewStore } from "@/store/review-store";
+import { draftConfirmStatement } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +18,12 @@ const ACTION_LABEL: Record<Suggestion["action"], string> = {
 };
 
 export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
+  const resume = useReviewStore((s) => s.resume);
   const updateSuggestion = useReviewStore((s) => s.updateSuggestion);
   const [isEditing, setIsEditing] = useState(false);
   const [draftText, setDraftText] = useState(suggestion.proposedText ?? "");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const isApproved = suggestion.status === "APPROVED";
   const isRejected = suggestion.status === "REJECTED";
@@ -35,6 +39,20 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   };
 
   const reject = () => updateSuggestion(suggestion.id, { status: "REJECTED" });
+
+  const generate = async () => {
+    if (!resume) return;
+    setGenerateError(null);
+    setIsGenerating(true);
+    try {
+      const draft = await draftConfirmStatement(resume.id, suggestion.requirementText, suggestion.rationale);
+      updateSuggestion(suggestion.id, { userInput: draft });
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Failed to generate a draft.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <Card className="gap-3 py-4">
@@ -67,9 +85,15 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
 
         {suggestion.action === "CONFIRM" && (
           <div className="space-y-1.5">
-            <label htmlFor={`confirm-${suggestion.id}`} className="text-xs font-medium text-foreground">
-              Describe your experience (required to approve)
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor={`confirm-${suggestion.id}`} className="text-xs font-medium text-foreground">
+                Describe your experience (required to approve)
+              </label>
+              <Button size="xs" variant="ghost" onClick={generate} disabled={isGenerating} aria-busy={isGenerating}>
+                {isGenerating ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
+                {isGenerating ? "Generating…" : "Generate"}
+              </Button>
+            </div>
             <Textarea
               id={`confirm-${suggestion.id}`}
               value={suggestion.userInput ?? ""}
@@ -78,6 +102,10 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
               rows={2}
               className="text-sm"
             />
+            <p className="text-xs text-muted-foreground">
+              {generateError ??
+                "Generate drafts a starting point from your resume — bracketed [placeholders] mark anything it couldn't verify. Edit it to reflect what's actually true before approving."}
+            </p>
           </div>
         )}
 
