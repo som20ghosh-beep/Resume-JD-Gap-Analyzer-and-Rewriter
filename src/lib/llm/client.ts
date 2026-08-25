@@ -14,6 +14,11 @@ export function getGroqClient(): Groq {
   if (!process.env.GROQ_API_KEY) {
     throw new Error("MISSING_API_KEY");
   }
-  client ??= new Groq();
+  // Default maxRetries (2, so 3 attempts total) got exhausted by a real transient outage —
+  // confirmed by replaying the exact same request moments later and having it succeed, which
+  // rules out a deterministic bad-request-style failure. The SDK already backs off correctly
+  // and only retries the retryable classes (408/409/429/5xx, connection errors), so raising
+  // its own budget is simpler and more correct than a parallel hand-rolled retry loop.
+  client ??= new Groq({ maxRetries: 4 });
   return client;
 }
